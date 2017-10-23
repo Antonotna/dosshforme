@@ -3,8 +3,10 @@ import sys
 from netmiko import ConnectHandler
 import netmiko
 import getpass
+import argparse
+import os
 
-uname = pwd = cmd = None
+uname = pwd = cmd = oFile = None
 
 maxConnections = 5
 semaphore = None
@@ -18,7 +20,10 @@ def getCredentials():
 
 def getParam(): 
 	global maxConnections, cmd
-	maxConnections = int(input('max connect: '))
+	try:
+		maxConnections = int(input('max connect[default 5]: '))
+	except ValueError:
+		maxConnections = 5		
 	cmd = input('command: ')
 
 def getHostList():
@@ -30,35 +35,50 @@ def getHostList():
 		hostList.append(line.rstrip('\n'))
 
 def sshExchange(host):
-	global uname, pwd, cmd, semaphore
+	global uname, pwd, cmd, semaphore, oFile, muxwrite
 	try:
 		net_connect = ConnectHandler(device_type='cisco_ios', ip=host, username=uname, password=pwd)
 		prompt = net_connect.find_prompt().rstrip('#\n')
 		output = net_connect.send_command(cmd, delay_factor=0.4)
 		net_connect.disconnect()
 	except netmiko.ssh_exception.NetMikoTimeoutException:
-		print('%s Timeout' % host)
+		print('%s Timeout' % host)		
 		semaphore.release()
 		return
 	except netmiko.ssh_exception.NetMikoAuthenticationException:
 		print('%s Auth Fail' % host)
-		semaphore.release()
+		semaphore.release()		
 		return
 	except:
-		print('%s Unknown' % host)
+		print('%s Unknown' % host)		
 		semaphore.release()
 		return
 
 	semaphore.release()
 
-	print('%s:\n%s\n----------------------------------------' % (prompt, output))
+	poutput = '%s:\n%s\n----------------------------------------\n' % (prompt, output)
+
+	if(oFile != None):
+		muxwrite.acquire()
+		with open(oFile, 'a') as f:
+			f.write(poutput)
+		muxwrite.release()
+
+	print(poutput)
 
 def main():
-	global maxConnections, semaphore
+	global maxConnections, semaphore, oFile
+	parser = argparse.ArgumentParser()
+	parser.add_argument("--out", dest='outFile', help="Output File")
+	args = parser.parse_args()
+
+	oFile = args.outFile
+
 	getCredentials()
 	getParam()
 	hostList = getHostList()
-	semaphore = threading.BoundedSemaphore(maxConnections)
+	semaphore = threading.BoundedSemaphore(value=maxConnections)
+
 
 	print('In progress...')
 	for host in hostList:
