@@ -6,7 +6,7 @@ import getpass
 import argparse
 import os
 
-uname = pwd = cmd = oFile = None
+uname = pwd = cmd = oFile = delayFactor = None
 
 maxConnections = 5
 semaphore = None
@@ -19,11 +19,15 @@ def getCredentials():
 	pwd = getpass.getpass('pass: ')
 
 def getParam(): 
-	global maxConnections, cmd
+	global maxConnections, cmd, delayFactor
 	try:
 		maxConnections = int(input('max connect[default 5]: '))
 	except ValueError:
-		maxConnections = 5		
+		maxConnections = 5	
+	try:
+		delayFactor = float(input('delay factor[default 0.4]: '))	
+	except:
+		delayFactor = 0.4
 	cmd = input('command: ')
 
 def getHostList():
@@ -35,11 +39,11 @@ def getHostList():
 		hostList.append(line.rstrip('\n'))
 
 def sshExchange(host):
-	global uname, pwd, cmd, semaphore, oFile, muxwrite
+	global uname, pwd, cmd, semaphore, oFile, muxwrite, delayFactor
 	try:
 		net_connect = ConnectHandler(device_type='cisco_ios', ip=host, username=uname, password=pwd)
 		prompt = net_connect.find_prompt().rstrip('#\n')
-		output = net_connect.send_command(cmd, delay_factor=0.4)
+		output = net_connect.send_command(cmd, delay_factor=delayFactor)
 		net_connect.disconnect()
 	except netmiko.ssh_exception.NetMikoTimeoutException:
 		print('%s Timeout' % host)		
