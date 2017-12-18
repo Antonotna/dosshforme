@@ -60,7 +60,7 @@ def sshExchange(host):
 
 	semaphore.release()
 
-	poutput = '%s:\n%s\n----------------------------------------\n' % (prompt, output)
+	poutput = '%s(%s):\n%s\n----------------------------------------\n' % (prompt, host, output)
 
 	if(oFile != None):
 		muxwrite.acquire()
